@@ -41,9 +41,7 @@ interface GcoreData {
 }
 const TableServers = () => {
   const apiKeys = JSON.parse(localStorage.getItem("apiKeys") || "[]" || "");
-  if (!apiKeys) {
-    return <div>there in no api keys. add apikeys</div>;
-  }
+
   const { data, isLoading, error } = useFetchApiData(apiKeys);
   if (isLoading) {
     return <div>...loading</div>;

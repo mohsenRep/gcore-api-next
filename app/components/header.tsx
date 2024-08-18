@@ -34,7 +34,7 @@ const Header = () => {
         >
           Dashboard
         </Link>
-        <Link
+        {/* <Link
           href="#"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -57,7 +57,7 @@ const Header = () => {
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
           Analytics
-        </Link>
+        </Link> */}
       </nav>
       <Sheet>
         <SheetTrigger asChild>
@@ -78,7 +78,7 @@ const Header = () => {
             <Link href="#" className="hover:text-foreground">
               Dashboard
             </Link>
-            <Link
+            {/* <Link
               href="#"
               className="text-muted-foreground hover:text-foreground"
             >
@@ -101,7 +101,7 @@ const Header = () => {
               className="text-muted-foreground hover:text-foreground"
             >
               Analytics
-            </Link>
+            </Link> */}
           </nav>
         </SheetContent>
       </Sheet>
@@ -113,6 +113,7 @@ const Header = () => {
               type="search"
               placeholder="Search products..."
               className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+              disabled
             />
           </div>
         </form>
