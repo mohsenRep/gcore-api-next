@@ -30,48 +30,50 @@ import {
   TableCaption,
 } from "@/components/ui/table";
 import ChartUsage from "./chartUsage";
-
-
+import useFetchApiData from "@/lib/api/getAccountOveral";
+import { GcoreAccounts, columns } from "./tableTanstack/columns";
+import { DataTable } from "./tableTanstack/data-table";
+interface GcoreData {
+  id: string;
+  cdnStatus: string;
+  usedBandwidth: number;
+  reminderBandwidth: number;
+}
 const TableServers = () => {
+  const apiKeys = JSON.parse(localStorage.getItem("apiKeys") || "[]" || "");
+  if (!apiKeys) {
+    return <div>there in no api keys. add apikeys</div>;
+  }
+  const { data, isLoading, error } = useFetchApiData(apiKeys);
+  if (isLoading) {
+    return <div>...loading</div>;
+  }
+  if (error) {
+    return <div>...loading</div>;
+  }
+  const gcoreData: GcoreData = {
+    id: "",
+    cdnStatus: "",
+    usedBandwidth: 0,
+    reminderBandwidth: 0,
+  };
+  const gcoreDataTable: GcoreAccounts[] = [];
+  if (data) {
+    for (let i = 0; i < data.length; i++) {
+      gcoreData.id = data[i].data.email;
+      gcoreData.cdnStatus = data[i].data.serviceStatuses.CDN.status;
+      gcoreData.usedBandwidth =
+        +data[i].data3[0].threshold.current_value.toFixed(2);
+      gcoreData.reminderBandwidth =
+        +data[i].data3[0].threshold.remainder.toFixed(2);
+      gcoreDataTable.push({ ...gcoreData });
+    }
+  }
+
   return (
-    <div className="grid gap-4 md:gap-8 lg:grid-cols-2 ">
-      <Card x-chunk="dashboard-01-chunk-4">
-        <CardHeader className="flex flex-row items-center">
-          <div className="grid gap-2">
-            <CardTitle>Transactions</CardTitle>
-            <CardDescription>
-              Recent transactions from your store.
-            </CardDescription>
-          </div>
-          <Button asChild size="sm" className="ml-auto gap-1">
-            <Link href="#">
-              View All
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>A list of your recent invoices.</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Invoice</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">INV001</TableCell>
-                <TableCell>Paid</TableCell>
-                <TableCell>Credit Card</TableCell>
-                <TableCell className="text-right">$250.00</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <div className="grid gap-4 md:gap-8 xl:grid-cols-2  ">
+      <DataTable columns={columns} data={gcoreDataTable} />
+
       <ChartUsage />
     </div>
   );

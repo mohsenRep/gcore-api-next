@@ -28,7 +28,7 @@ export default function RootLayout({
         )}
       >
         <Provider>
-          <div className="flex min-h-screen w-full flex-col xl:px-52 ">
+          <div className="flex min-h-screen w-full flex-col  ">
             <Header />
             {children}
             <Toaster />

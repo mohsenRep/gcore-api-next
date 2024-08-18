@@ -37,21 +37,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const queryCache = new QueryCache({
-  onError: (error) => {
-    console.log(error);
-  },
-  onSuccess: (data) => {
-    console.log(data);
-  },
-  onSettled: (data, error) => {
-    console.log(data, error);
-  },
-});
-
 const ChartUsage = () => {
   const apiKeys = JSON.parse(localStorage.getItem("apiKeys") || "[]" || "");
   const { data, isLoading, error } = useFetchApiData(apiKeys);
+  if (isLoading) {
+    return <div>...loading</div>;
+  }
+  if (error) {
+    return <div>...loading</div>;
+  }
   if (data) {
     const dataBar = {
       name: "",
@@ -91,7 +85,12 @@ const ChartUsage = () => {
                 tickFormatter={(value) => value.slice(0, 3)}
                 hide
               />
-              <XAxis dataKey="bandwidthUsage" type="number" hide />
+              <XAxis
+                dataKey="bandwidthUsage"
+                domain={["dataMin", "dataMax + 100"]}
+                type="number"
+                hide
+              />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent indicator="line" />}
@@ -99,7 +98,7 @@ const ChartUsage = () => {
               <Bar
                 dataKey="bandwidthUsage"
                 layout="vertical"
-                fill="var(--color-BandwidthUsage)"
+                fill="var(--color-bandwidthUsage)"
                 radius={4}
               >
                 <LabelList
@@ -120,14 +119,7 @@ const ChartUsage = () => {
             </BarChart>
           </ChartContainer>
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          <div className="flex gap-2 font-medium leading-none">
-            Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-          </div>
-          <div className="leading-none text-muted-foreground">
-            Showing total visitors for the last 6 months
-          </div>
-        </CardFooter>
+        
       </Card>
     );
   }

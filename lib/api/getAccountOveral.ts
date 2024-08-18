@@ -65,7 +65,7 @@ const useFetchApiData = (apiKeys: ApiKeys) => {
         queryKey: ['apiData'],
         queryFn: fetchApiData,
     });
-
+    console.log(data)
     return { data, isLoading, error };
 };
 
