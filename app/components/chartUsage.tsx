@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/chart";
 import { promises } from "dns";
 import useFetchApiData from "@/lib/api/getAccountOveral";
+import { ApiResponse } from "@/types/type";
 
 const chartConfig = {
   bandwidthUsage: {
@@ -36,16 +37,18 @@ const chartConfig = {
     color: "hsl(var(--background))",
   },
 } satisfies ChartConfig;
+export interface GcoreAccounts {
+  id: string;
+  email: string;
+  cdnStatus: string;
+  usedBandwidthGB: number;
+  reminderBandwidthGB: number;
+  totalBandwidth: number;
+  usagePercentage: number;
+}
 
-const ChartUsage = () => {
-  const apiKeys = JSON.parse(localStorage.getItem("apiKeys") || "[]" || "");
-  const { data, isLoading, error } = useFetchApiData(apiKeys);
-  if (isLoading) {
-    return <div>...loading</div>;
-  }
-  if (error) {
-    return <div>...loading</div>;
-  }
+const ChartUsage = ({ data }: { data: GcoreAccounts[] }) => {
+  console.log(data);
   if (data) {
     const dataBar = {
       name: "",
@@ -54,9 +57,9 @@ const ChartUsage = () => {
     const chartData: any = [];
 
     for (let i = 0; i < data.length; i++) {
-      dataBar.name = data[i].data.email;
+      dataBar.name = data[i].email;
       dataBar.bandwidthUsage =
-        +data[i].data3[0].threshold.current_value.toFixed(2);
+        +data[i].usedBandwidthGB
       chartData.push({ ...dataBar });
     }
     return (
@@ -119,7 +122,6 @@ const ChartUsage = () => {
             </BarChart>
           </ChartContainer>
         </CardContent>
-        
       </Card>
     );
   }

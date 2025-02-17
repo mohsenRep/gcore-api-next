@@ -1,72 +1,133 @@
+import { ApiKeys, ApiResponse } from '@/types/type';
 import { useQuery } from '@tanstack/react-query';
-interface ApiKey {
-    name: string;
-    apiKey: string;
+
+
+
+const MAX_RETRIES = 3;
+const TIMEOUT_MS = 10000;
+
+async function fetchWithTimeout(resource: string, options: RequestInit) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal,
+        });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
 }
-interface ApiKeys extends Array<ApiKey> { }
+
 const useFetchApiData = (apiKeys: ApiKeys) => {
-    const fetchApiData = async () => {
-        if (apiKeys.length > 0) {
-            try {
-                const allData = await Promise.all(
-                    apiKeys.map(async ({ name, apiKey }) => {
-                        const responseAccount = await fetch(
-                            `https://api.gcore.com/iam/clients/me`,
-                            {
-                                method: 'GET',
-                                headers: new Headers({
-                                    Authorization: 'APIKey ' + apiKey,
-                                    'Content-Type': 'application/x-www-form-urlencoded',
+    const fetchApiData = async (): Promise<ApiResponse[] | undefined> => {
+        if (!apiKeys?.length) {
+            throw new Error('No API keys provided');
+        }
+
+        try {
+            const allData = await Promise.all(
+                apiKeys.map(async ({ name, apiKey }) => {
+                    const headers = new Headers({
+                        Authorization: `APIKey ${apiKey}`,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    });
+
+                    let retries = 0;
+                    const makeRequest = async () => {
+                        try {
+                            const [accountResponse, addendumResponse] = await Promise.all([
+                                fetchWithTimeout('https://api.gcore.com/iam/clients/me', {
+                                    method: 'GET',
+                                    headers,
                                 }),
-                            },
-                        );
-                        const data = await responseAccount.json();
-
-                        const responseAddendums = await fetch(
-                            `https://api.gcore.com/billing/v3/addendums?ordering=active_from`,
-                            {
-                                method: 'GET',
-                                headers: new Headers({
-                                    Authorization: 'APIKey ' + apiKey,
-                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                fetchWithTimeout('https://api.gcore.com/billing/v3/addendums?ordering=active_from', {
+                                    method: 'GET',
+                                    headers,
                                 }),
-                            },
-                        );
-                        //   https://api.gcore.com/cdn/statistics/series?service=CDN&flat=true&from=2024-06-18T12:19:44.297Z&to=2024-07-18T12:19:44.297Z&metrics=sent_bytes&metrics=shield_bytes&metrics=upstream_bytes&metrics=total_bytes&metrics=cdn_bytes&group_by=resource&granularity=1d&resource=695503
-                        const data2 = await responseAddendums.json();
+                            ]);
 
-                        const cdnId = data2.filter((data: any) => {
-                            return data.product_internal_name === 'CDN';
-                        });
+                            if (accountResponse.status === 429 || addendumResponse.status === 429) {
+                                const retryAfter = Math.max(
+                                    parseInt(accountResponse.headers.get('Retry-After') || '5', 10),
+                                    parseInt(addendumResponse.headers.get('Retry-After') || '5', 10)
+                                );
+                                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                                throw new Error('Rate limited');
+                            }
 
-                        const responseCdn = await fetch(
-                            `https://api.gcore.com/billing/v3/addendums/${cdnId[0].id}/subscriptions?check_threshold=true`,
-                            {
-                                method: 'GET',
-                                headers: new Headers({
-                                    Authorization: 'APIKey ' + apiKey,
-                                    'Content-Type': 'application/x-www-form-urlencoded',
-                                }),
-                            },
-                        );
+                            if (!accountResponse.ok || !addendumResponse.ok) {
+                                throw new Error(`HTTP Error: ${accountResponse.status} ${addendumResponse.status}`);
+                            }
 
-                        const data3 = await responseCdn.json();
-                        return { name, data, data2, data3 };
-                    }),
-                );
-                return allData;
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            }
+                            const data = await accountResponse.json();
+                            const data2 = await addendumResponse.json();
+
+                            if (!Array.isArray(data2)) {
+                                throw new Error('Invalid addendum response format');
+                            }
+
+                            const cdnAddendum = data2.find(item => item.product_internal_name === 'CDN');
+
+
+                            const cdnResponse = await fetchWithTimeout(
+                                `https://api.gcore.com/billing/v3/addendums/${cdnAddendum.id}/subscriptions?check_threshold=true`,
+                                {
+                                    method: 'GET',
+                                    headers,
+                                }
+                            );
+
+                            if (!cdnResponse.ok) {
+                                throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
+                            }
+
+                            const data3 = await cdnResponse.json();
+
+                            const cdnDetails = await fetchWithTimeout(
+                                `https://api.gcore.com/cdn/resources?offset=0&limit=10&search=&ordering=-id&status=active,processed&exclude=&fields=id,active,cname,originGroup,originGroup_name,secondaryHostnames,preset_applied,status,created,deleted,description,sslEnabled,sslData,primary_resource,full_custom_enabled,is_primary,vp_enabled,suspend_date,waap_enabled`,
+                                {
+                                    method: 'GET',
+                                    headers,
+                                }
+                            )
+                            if (!cdnDetails.ok) {
+                                throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
+                            }
+                            const cdnDetailsData = await cdnDetails.json();
+                            return { name, data, data2, data3, cdnDetailsData };
+                        } catch (error) {
+                            if (retries < MAX_RETRIES) {
+                                retries++;
+                                await new Promise(resolve => setTimeout(resolve, 2000 * retries));
+                                return makeRequest();
+                            }
+                            throw error;
+                        }
+                    };
+
+                    return makeRequest();
+                })
+            );
+
+            return allData;
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            throw error;
         }
     };
 
-    const { data, isLoading, error } = useQuery({
+    return useQuery<ApiResponse[] | undefined, Error>({
         queryKey: ['apiData'],
         queryFn: fetchApiData,
+        retry: 2,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
     });
-    console.log(data)
-    return { data, isLoading, error };
 };
 
 export default useFetchApiData;
+

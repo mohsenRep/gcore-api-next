@@ -4,77 +4,79 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button";
 
-
-export type GcoreAccounts = {
+export interface GcoreAccounts {
   id: string;
+  email: string;
   cdnStatus: string;
-  usedBandwidth: number;
-  reminderBandwidth: number;
-};
+  usedBandwidthGB: number;
+  reminderBandwidthGB: number;
+  totalBandwidth: number;
+  usagePercentage: number;
+  cname: string;
+}
 
 export const columns: ColumnDef<GcoreAccounts>[] = [
   {
-    accessorKey: "id",
-    header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
+    accessorKey: "email",
+    header: "Email",
+  },
+  {
+    accessorKey: "cname",
+    header: "CDN Name",
     cell: ({ row }) => {
-      const id: string = row.getValue("id");
-      const formatted = id.substring(0, id.indexOf("@"));
-
-      return <div>{formatted}</div>;
+      const status = row.getValue("cname");
+      return (
+        <div className={`font-medium ${status === 'active' ? 'text-green-500' : 'text-red-500'}`}>
+          {String(status)}
+        </div>
+      );
     },
   },
   {
     accessorKey: "cdnStatus",
     header: "CDN Status",
+    cell: ({ row }) => {
+      const status = row.getValue("cdnStatus");
+      return (
+        <div className={`font-medium ${status === 'active' ? 'text-green-500' : 'text-red-500'}`}>
+          {String(status)}
+        </div>
+      );
+    },
   },
   {
-    accessorKey: "usedBandwidth",
-    header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Used Bandwidth
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const usedBandwidth: string = row.getValue("usedBandwidth");
-        const formatted = usedBandwidth +' GB'
-  
-        return <div>{formatted}</div>;
-      },
+    accessorKey: "usedBandwidthGB",
+    header: "Used (GB)",
+    cell: ({ row }) => {
+      const value = row.getValue("usedBandwidthGB");
+      return `${value} GB`;
+    },
   },
   {
-    accessorKey: "reminderBandwidth",
-    header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Reminder Bandwidth
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const reminderBandwidth: string = row.getValue("reminderBandwidth");
-        const formatted = reminderBandwidth +' GB'
+    accessorKey: "reminderBandwidthGB",
+    header: "Remaining (GB)",
+    cell: ({ row }) => {
+      const value = row.getValue("reminderBandwidthGB");
+      return `${value} GB`;
+    },
+  },
   
-        return <div>{formatted}</div>;
-      },
+  {
+    accessorKey: "usagePercentage",
+    header: "Usage %",
+    cell: ({ row }) => {
+      const percentage = row.getValue("usagePercentage");
+      return (
+        <>
+          <div className="font-medium mb-1">{String(percentage)}%</div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full"
+              style={{ width: `${percentage}%` }}
+            ></div>
+          </div>
+        </>
+      );
+    },
   },
 ];
