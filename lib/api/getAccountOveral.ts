@@ -23,111 +23,130 @@ async function fetchWithTimeout(resource: string, options: RequestInit) {
 }
 
 const useFetchApiData = (apiKeys: ApiKeys) => {
-    const fetchApiData = async (): Promise<ApiResponse[] | undefined> => {
+    const fetchApiData = async (): Promise<ApiResponse[]> => {
         if (!apiKeys?.length) {
             throw new Error('No API keys provided');
         }
 
-        try {
-            const allData = await Promise.all(
-                apiKeys.map(async ({ name, apiKey }) => {
-                    const headers = new Headers({
-                        Authorization: `APIKey ${apiKey}`,
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    });
+        const results = await Promise.allSettled(
+            apiKeys.map(async ({ name, apiKey }) => {
+                const headers = new Headers({
+                    Authorization: `APIKey ${apiKey}`,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                });
 
-                    let retries = 0;
-                    const makeRequest = async () => {
-                        try {
-                            const [accountResponse, addendumResponse] = await Promise.all([
-                                fetchWithTimeout('https://api.gcore.com/iam/clients/me', {
-                                    method: 'GET',
-                                    headers,
-                                }),
-                                fetchWithTimeout('https://api.gcore.com/billing/v3/addendums?ordering=active_from', {
-                                    method: 'GET',
-                                    headers,
-                                }),
-                            ]);
+                let retries = 0;
+                const makeRequest = async (): Promise<ApiResponse> => {
+                    try {
+                        const [accountResponse, addendumResponse] = await Promise.all([
+                            fetchWithTimeout('https://api.gcore.com/iam/clients/me', {
+                                method: 'GET',
+                                headers,
+                            }),
+                            fetchWithTimeout('https://api.gcore.com/billing/v3/addendums?ordering=active_from', {
+                                method: 'GET',
+                                headers,
+                            }),
+                        ]);
 
-                            if (accountResponse.status === 429 || addendumResponse.status === 429) {
-                                const retryAfter = Math.max(
-                                    parseInt(accountResponse.headers.get('Retry-After') || '5', 10),
-                                    parseInt(addendumResponse.headers.get('Retry-After') || '5', 10)
-                                );
-                                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-                                throw new Error('Rate limited');
-                            }
-
-                            if (!accountResponse.ok || !addendumResponse.ok) {
-                                throw new Error(`HTTP Error: ${accountResponse.status} ${addendumResponse.status}`);
-                            }
-
-                            const data = await accountResponse.json();
-                            const data2 = await addendumResponse.json();
-
-                            if (!Array.isArray(data2)) {
-                                throw new Error('Invalid addendum response format');
-                            }
-
-                            const cdnAddendum = data2.find(item => item.product_internal_name === 'CDN');
-
-
-                            const cdnResponse = await fetchWithTimeout(
-                                `https://api.gcore.com/billing/v3/addendums/${cdnAddendum.id}/subscriptions?check_threshold=true`,
-                                {
-                                    method: 'GET',
-                                    headers,
-                                }
+                        if (accountResponse.status === 429 || addendumResponse.status === 429) {
+                            const retryAfter = Math.max(
+                                parseInt(accountResponse.headers.get('Retry-After') || '5', 10),
+                                parseInt(addendumResponse.headers.get('Retry-After') || '5', 10)
                             );
-
-                            if (!cdnResponse.ok) {
-                                throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
-                            }
-
-                            const data3 = await cdnResponse.json();
-
-                            const cdnDetails = await fetchWithTimeout(
-                                `https://api.gcore.com/cdn/resources?offset=0&limit=10&search=&ordering=-id&status=active,processed&exclude=&fields=id,active,cname,originGroup,originGroup_name,secondaryHostnames,preset_applied,status,created,deleted,description,sslEnabled,sslData,primary_resource,full_custom_enabled,is_primary,vp_enabled,suspend_date,waap_enabled`,
-                                {
-                                    method: 'GET',
-                                    headers,
-                                }
-                            )
-                            if (!cdnDetails.ok) {
-                                throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
-                            }
-                            const cdnDetailsData = await cdnDetails.json();
-                            return { name, data, data2, data3, cdnDetailsData };
-                        } catch (error) {
-                            if (retries < MAX_RETRIES) {
-                                retries++;
-                                await new Promise(resolve => setTimeout(resolve, 2000 * retries));
-                                return makeRequest();
-                            }
-                            throw error;
+                            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                            throw new Error('Rate limited');
                         }
-                    };
 
-                    return makeRequest();
-                })
-            );
+                        if (!accountResponse.ok || !addendumResponse.ok) {
+                            throw new Error(`HTTP Error: ${accountResponse.status} ${addendumResponse.status}`);
+                        }
 
-            return allData;
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            throw error;
-        }
+                        const data = await accountResponse.json();
+                        const data2 = await addendumResponse.json();
+
+                        if (!Array.isArray(data2)) {
+                            throw new Error('Invalid addendum response format');
+                        }
+
+                        const cdnAddendum = data2.find(item => item.product_internal_name === 'CDN');
+
+                        const cdnResponse = await fetchWithTimeout(
+                            `https://api.gcore.com/billing/v3/addendums/${cdnAddendum.id}/subscriptions?check_threshold=true`,
+                            {
+                                method: 'GET',
+                                headers,
+                            }
+                        );
+
+
+                        if (!cdnResponse.ok) {
+                            throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
+                        }
+
+                        const data3 = await cdnResponse.json();
+
+
+                        const cdnDetails = await fetchWithTimeout(
+                            `https://api.gcore.com/cdn/resources?offset=0&limit=10&search=&ordering=-id&status=active,processed&exclude=&fields=id,active,cname,originGroup,originGroup_name,secondaryHostnames,preset_applied,status,created,deleted,description,sslEnabled,sslData,primary_resource,full_custom_enabled,is_primary,vp_enabled,suspend_date,waap_enabled`,
+                            {
+                                method: 'GET',
+                                headers,
+                            }
+                        );
+
+                        if (!cdnDetails.ok) {
+                            throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
+                        }
+
+                        const cdnDetailsData = await cdnDetails.json();
+                        const originGroup = cdnDetailsData.results[0].originGroup
+                        const originGroupResponse = await fetchWithTimeout(
+                            `https://api.gcore.com/cdn/origin_groups/${originGroup}`,
+                            {
+                                method: 'GET',
+                                headers,
+                            }
+                        );
+
+                        if (!originGroupResponse.ok) {
+                            throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
+                        }
+
+                        const originGroupData = await originGroupResponse.json();
+
+                        return { name, data, data2, data3, cdnDetailsData, originGroupData };
+                    } catch (error) {
+                        if (retries < MAX_RETRIES) {
+                            retries++;
+                            await new Promise(resolve => setTimeout(resolve, 2000 * retries));
+                            return makeRequest();
+                        }
+                        throw error;
+                    }
+                };
+
+                return makeRequest();
+            })
+        );
+
+        // فقط داده‌های موفق را فیلتر کن
+        const successfulData = results
+            .filter(result => result.status === 'fulfilled')
+            .map(result => (result as PromiseFulfilledResult<ApiResponse>).value);
+
+        return successfulData;
     };
 
-    return useQuery<ApiResponse[] | undefined, Error>({
+    return useQuery<ApiResponse[], Error>({
         queryKey: ['apiData'],
         queryFn: fetchApiData,
         retry: 2,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 30 * 60 * 1000, // 30 minutes
+        staleTime: 5 * 60 * 1000,
+        gcTime: 30 * 60 * 1000,
     });
 };
+
 
 export default useFetchApiData;
 

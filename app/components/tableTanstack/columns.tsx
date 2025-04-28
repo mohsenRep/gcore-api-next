@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react"
+import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface GcoreAccounts {
@@ -25,11 +25,7 @@ export const columns: ColumnDef<GcoreAccounts>[] = [
     header: "CDN Name",
     cell: ({ row }) => {
       const status = row.getValue("cname");
-      return (
-        <div className={`font-medium ${status === 'active' ? 'text-green-500' : 'text-red-500'}`}>
-          {String(status)}
-        </div>
-      );
+      return <div className="font-medium text-green-500">{String(status)}</div>;
     },
   },
   {
@@ -38,10 +34,22 @@ export const columns: ColumnDef<GcoreAccounts>[] = [
     cell: ({ row }) => {
       const status = row.getValue("cdnStatus");
       return (
-        <div className={`font-medium ${status === 'active' ? 'text-green-500' : 'text-red-500'}`}>
+        <div
+          className={`font-medium ${
+            status === "active" ? "text-green-500" : "text-red-500"
+          }`}
+        >
           {String(status)}
         </div>
       );
+    },
+  },
+  {
+    accessorKey: "serverIp",
+    header: "Server Ip",
+    cell: ({ row }) => {
+      const status = row.getValue("serverIp");
+      return <div className="font-medium text-green-500">{String(status).split(":")[0]}</div>;
     },
   },
   {
@@ -52,15 +60,7 @@ export const columns: ColumnDef<GcoreAccounts>[] = [
       return `${value} GB`;
     },
   },
-  {
-    accessorKey: "reminderBandwidthGB",
-    header: "Remaining (GB)",
-    cell: ({ row }) => {
-      const value = row.getValue("reminderBandwidthGB");
-      return `${value} GB`;
-    },
-  },
-  
+
   {
     accessorKey: "usagePercentage",
     header: "Usage %",

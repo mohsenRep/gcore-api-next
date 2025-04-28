@@ -56,6 +56,7 @@ const TableServers = () => {
       return {
         id: account.data.id.toString(),
         email: account.data.email,
+        serverIp:account.originGroupData.sources[0].source,
         cdnStatus: account.data.serviceStatuses.CDN?.status || "N/A",
         usedBandwidthGB,
         reminderBandwidthGB,
