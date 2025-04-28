@@ -145,7 +145,7 @@ export interface ApiResponse {
     data2: Data2[];
     data3: Data3[];
     cdnDetailsData: PaginatedResponse
-    originGroupData:Origin
+    originGroupData: Origin
 }
 // Interface for individual result object
 export interface Result {
@@ -182,9 +182,9 @@ type Source = {
     backup: boolean;
     enabled: boolean;
     tag: string;
-  };
-  
-  type Origin = {
+};
+
+export type Origin = {
     id: number;
     name: string;
     sources: Source[];
@@ -193,4 +193,4 @@ type Source = {
     proxy_next_upstream: string | null;
     auth_type: string;
     path: string;
-  };
+};

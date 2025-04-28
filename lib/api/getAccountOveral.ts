@@ -1,4 +1,4 @@
-import { ApiKeys, ApiResponse } from '@/types/type';
+import { ApiKeys, ApiResponse, Origin } from '@/types/type';
 import { useQuery } from '@tanstack/react-query';
 
 
@@ -113,7 +113,7 @@ const useFetchApiData = (apiKeys: ApiKeys) => {
                             throw new Error(`CDN HTTP Error: ${cdnResponse.status}`);
                         }
 
-                        const originGroupData = await originGroupResponse.json();
+                        const originGroupData: Origin = await originGroupResponse.json();
 
                         return { name, data, data2, data3, cdnDetailsData, originGroupData };
                     } catch (error) {
